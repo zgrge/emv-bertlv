@@ -4,11 +4,9 @@ import io.github.binaryfoo.decoders.Decoders
 import io.github.binaryfoo.decoders.PrimitiveDecoder
 import io.github.binaryfoo.res.ClasspathIO
 import io.github.binaryfoo.tlv.Tag
-import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.Yaml
-import org.yaml.snakeyaml.constructor.Constructor
-import org.yaml.snakeyaml.representer.Representer
-import org.yaml.snakeyaml.resolver.Resolver
+import org.yaml.snakeyaml.constructor.SafeConstructor
 import java.io.FileWriter
 import java.io.PrintWriter
 import kotlin.collections.*
@@ -67,27 +65,28 @@ class TagMetaData(private val metadata: MutableMap<String, TagInfo>) {
 
     @JvmStatic
     fun load(name: String): TagMetaData {
-      val yaml = Yaml(Constructor(), Representer(), DumperOptions(), object : Resolver() {
-        override fun addImplicitResolvers() {
-          // leave everything as strings
-        }
-      })
+      val yaml = Yaml(SafeConstructor(LoaderOptions()))
+      // snakeyaml 2.x parses numeric-looking keys (e.g. "82") as integers without a custom Resolver.
+      // We stringify all keys and values after loading.
       @Suppress("UNCHECKED_CAST")
-      val map = yaml.load(ClasspathIO.open(name)) as Map<String, Map<String, String?>>
-      return TagMetaData(LinkedHashMap(map.mapValues {
-        val shortName = it.value["name"]!!
-        val longName = it.value["longName"] ?: shortName
-        val decoder: Decoder = if (it.value.contains("decoder")) {
-          Class.forName("io.github.binaryfoo.decoders." + it.value["decoder"]).newInstance() as Decoder
+      val raw = yaml.load<Map<Any, Map<Any, Any?>>>(ClasspathIO.open(name))
+      val map: Map<String, Map<String, String?>> = raw.entries.associate { (k, v) ->
+        k.toString() to ((v as? Map<*, *>)?.entries?.associate { (vk, vv) -> vk.toString() to vv?.toString() } ?: emptyMap())
+      }
+      return TagMetaData(LinkedHashMap(map.mapValues { (_, props) ->
+        val shortName = props["name"]!!
+        val longName = props["longName"] ?: shortName
+        val decoder: Decoder = if (props.contains("decoder")) {
+          Class.forName("io.github.binaryfoo.decoders." + props["decoder"]).getDeclaredConstructor().newInstance() as Decoder
         } else {
           Decoders.PRIMITIVE
         }
-        val primitiveDecoder = if (it.value.contains("primitiveDecoder")) {
-          Class.forName("io.github.binaryfoo.decoders." + it.value["primitiveDecoder"]).newInstance() as PrimitiveDecoder
+        val primitiveDecoder = if (props.contains("primitiveDecoder")) {
+          Class.forName("io.github.binaryfoo.decoders." + props["primitiveDecoder"]).getDeclaredConstructor().newInstance() as PrimitiveDecoder
         } else {
           PrimitiveDecoder.HEX
         }
-        TagInfo(shortName, longName, decoder, primitiveDecoder, it.value["short"], it.value["long"])
+        TagInfo(shortName, longName, decoder, primitiveDecoder, props["short"], props["long"])
       }))
     }
 

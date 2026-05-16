@@ -29,7 +29,13 @@ public class TagTest {
 
   @Test
   public void testConstructTagWithNull() {
-    doIllegalArgumentTest(null);
+    // Kotlin 2.x enforces non-null at the bytecode level, throwing NullPointerException
+    // before the constructor body runs (previously IllegalArgumentException).
+    try {
+      new Tag((byte[]) null, true);
+      fail();
+    } catch (NullPointerException | IllegalArgumentException ignored) {
+    }
   }
 
   @Test
