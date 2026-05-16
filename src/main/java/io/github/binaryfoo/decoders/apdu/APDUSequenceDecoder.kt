@@ -19,7 +19,7 @@ class APDUSequenceDecoder(private val replyDecoder: ReplyAPDUDecoder, vararg com
   override fun decode(input: String, startIndexInBytes: Int, session: DecodeSession): List<DecodedData> {
     var runningStartIndexInBytes = startIndexInBytes
     val list = ArrayList<DecodedData>()
-    input.toUpperCase().split(Regex("\\s+")).filter { it.isNotBlank() }.forEach { line ->
+    input.uppercase().split(Regex("\\s+")).filter { it.isNotBlank() }.forEach { line ->
       try {
         val commandDecoder = getCommandDecoder(line)
         val decoded: DecodedData
