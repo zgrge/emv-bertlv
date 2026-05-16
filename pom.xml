@@ -4,7 +4,7 @@
 
   <groupId>io.github.zgrge</groupId>
   <artifactId>emv-bertlv</artifactId>
-  <version>0.1.9-SNAPSHOT</version>
+  <version>0.1.9</version>
   <name>EMV BER-TLV Decoder</name>
   <description>
     Some decoders for the data used in EMV credit card transactions.
